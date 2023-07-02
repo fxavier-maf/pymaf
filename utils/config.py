@@ -1,0 +1,1 @@
+PACKAGE_NAME = 'maf_utils'
