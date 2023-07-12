@@ -10,20 +10,31 @@ from .logger import pkg_logger as logger
 # self.disk_cache = disk_cache
 
 class DatabaseConnector:
-    def __init__(self, db_type, connection_info, loglevel='DEBUG', cache_directory='.cache'):
+    def __init__(self, db_type, connection_info={}, loglevel='DEBUG', cache_directory='.cache', auth_backend='vault'):
         self.db_type = db_type
-        self.connection_info = connection_info
+        # self.connection_info = connection_info
         self.cache_enabled = True  # Flag to enable/disable caching
         self.query_cache = {}  # Dictionary to store query results
         self.cache_directory = cache_directory
 
-        logger.debug(self.connection_info)
         if loglevel:
             logger.setLevel(level=loglevel.upper())
         
+        if not connection_info and auth_backend != 'vault':
+            raise TypeError("If Vault backend is not used, connection_info argument is expected.")
+        
+        if auth_backend == 'local':
+            self.connection_info = connection_info
+        elif auth_backend == 'vault':
+            from .vault import Vault
+            self.connection_info = Vault().get_vertica_credentials()
+        else:
+            raise NotImplementedError()
+        
+        logger.info(self.connection_info)
+
         self.dbengine = None
         self.dbengine = self.connect()  # Placeholder for the database connection
-        
         
     def connect(self):
         if self.dbengine is None:

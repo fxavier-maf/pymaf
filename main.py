@@ -13,7 +13,7 @@ connection_info = { # pulled from vault
 
 connection = DatabaseConnector(
     'vertica',
-    connection_info
+    loglevel='CRITICAL'
 )
 
 print("Connected to vertica")
