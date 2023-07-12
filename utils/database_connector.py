@@ -1,5 +1,3 @@
-from functools import lru_cache
-from joblib import Memory
 import hashlib
 
 import pandas as pd
@@ -7,8 +5,9 @@ import pandas as pd
 from .dbconfig import verticaConnection, sqlAlchemyDbConnection
 from .logger import pkg_logger as logger
 
-cache_directory = 'cache'
-disk_cache = Memory(cache_directory)
+# cache_directory = 'cache'
+# disk_cache = Memory(cache_directory)
+# self.disk_cache = disk_cache
 
 class DatabaseConnector:
     def __init__(self, db_type, connection_info, loglevel='DEBUG', cache_directory='.cache'):
@@ -17,7 +16,6 @@ class DatabaseConnector:
         self.cache_enabled = True  # Flag to enable/disable caching
         self.query_cache = {}  # Dictionary to store query results
         self.cache_directory = cache_directory
-        self.disk_cache = disk_cache
 
         logger.debug(self.connection_info)
         if loglevel:
@@ -33,8 +31,7 @@ class DatabaseConnector:
                 self.dbengine = verticaConnection(self.connection_info)
             else:
                 self.dbengine = sqlAlchemyDbConnection(self.connection_info)
-        
-            # logger.info(f"Established connection as {self.connection_info['user']}")
+
         return self.dbengine.connect()
 
     # todo; enable getting login details from Vault
@@ -57,14 +54,9 @@ class DatabaseConnector:
         return hashlib.md5(query.encode()).hexdigest()
     
     # Enable/disable cache functionality
-    def enable_cache(self):
-        self.cache_enabled = True
-
-    def disable_cache(self):
-        self.cache_enabled = False
-
-    def is_cache_enabled(self):
-        return self.cache_enabled
+    def toggle_cache(self):
+        self.cache_enabled = not self.cache_enabled
+        logger.info("Caching enabled: {}".format(self.cache_enabled))
 
     def clear_cache(self):
         self.query_cache.clear()
