@@ -11,10 +11,7 @@ class verticaConnection():
         self.engine = vertica_python.connect(**self.connection_info)
         return self.engine
 
-    def query(self, query):
-        with self.connect() as engine:
-            df = pd.read_sql(query, engine)
-            return df
+
 
 class sqlAlchemyDbConnection():
     """
@@ -45,6 +42,3 @@ class sqlAlchemyDbConnection():
             # logger.error("Error executing the query: {}".format(error))
             raise(e)
 
-    def query(self, query):
-        df = pd.read_sql(query, self.db_engine)
-        return df
