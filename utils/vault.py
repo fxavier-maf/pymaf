@@ -1,20 +1,24 @@
 import os
 
 import hvac
-from hvac import exceptions
+# from hvac import exceptions
 
 class Vault:
     def __init__(self, vault="secret/data/jupyterhub-development/config"):
+        """
+        Args:
+            vault: (str) Location of credentials on path
+        """
         env_key = "DEVELOPER_ENVIRONMENT"
         environment = os.environ.get(env_key, "SANDBOX")
         supported_env_list = ["SANDBOX", "PRODUCTION", "RC"]
         if environment not in supported_env_list:
             raise NotImplementedError(f"{environment} is not authenticatable. Env should one of {','.join(supported_env_list)}")
 
-        self.env_key = f"{environment}"
-        self.url_key = f"{environment}_KEYSTORE_URL"
-        self.user_key = f"{environment}_USER"
-        self.password_key = f"{environment}_PASSWORD"
+        self.environment = f"{environment}"
+        self.url_key = f"{self.environment}_KEYSTORE_URL"
+        self.user_key = f"{self.environment}_USER"
+        self.password_key = f"{self.environment}_PASSWORD"
 
         self.credential_path = vault
 
@@ -37,14 +41,14 @@ class Vault:
 
     def get_client(self, auth_method="userpass"):
         """
-        Returns an authenticated vault client.
+        Creates an authenticated vault client.
 
         Args:
             auth_method: defaults to username & password.
         """
-        credentials = self._get_vault_env_credentials()
-        self.client = hvac.Client(url=credentials["url"])
         try:
+            credentials = self._get_vault_env_credentials()
+            self.client = hvac.Client(url=credentials["url"])
             if auth_method == "userpass":
                 self.client.auth.userpass.login(
                     username=credentials["user"], password=credentials["password"]
@@ -55,15 +59,15 @@ class Vault:
                 )
 
             return self.client
-        except (exceptions.Forbidden, exceptions.Unauthorized) as e:
-            print("Given credentials are not permitted. Server returned: ", e)
+        except (hvac.exceptions.Forbidden,
+                hvac.exceptions.Unauthorized,
+                hvac.exceptions.InternalServerError,
+                hvac.exceptions.InvalidRequest) as e:
+            raise VaultCustomException(str(e))
 
-    def get_credentials(self):
+    def _get_credentials(self):
         """
         Get credentials from the path provided by the user
-
-        Args:
-            path: (str) Location of credentials on path
         """
         response = self.get_client().read(self.credential_path)
         if 'data' in response and response['data'] is not None:
@@ -72,5 +76,8 @@ class Vault:
         return response
 
     def get_vertica_credentials(self):
-        response = self.get_credentials()
+        response = self._get_credentials()
         return {k.replace('VERTICA_', '').lower(): v for k, v in response.items()}
+    
+class VaultCustomException(Exception):
+    pass

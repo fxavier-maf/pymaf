@@ -5,17 +5,22 @@ import pandas as pd
 from .dbconfig import verticaConnection, sqlAlchemyDbConnection
 from .logger import pkg_logger as logger
 
-# cache_directory = 'cache'
-# disk_cache = Memory(cache_directory)
-# self.disk_cache = disk_cache
+# todo: implement a disk cache
 
 class DatabaseConnector:
-    def __init__(self, db_type, connection_info={}, loglevel='DEBUG', cache_directory='.cache', auth_backend='vault'):
+    """
+    Creates an authenticated database connector, which can run queries
+    and cache response in-memory.
+
+    Args:
+        db_type: Option to select a database connection - vertica,postgres,mysql. Else raises Error.
+        connection_info: Python dictionary containing host,user,password and port. Is ignored if auth_backend is set to Vault.
+        auth_backend: Ignored if passing authentication details in connection info. Else, use 'vault'.
+    """
+    def __init__(self, db_type, auth_backend='vault', connection_info={}, loglevel='DEBUG'):
         self.db_type = db_type
-        # self.connection_info = connection_info
         self.cache_enabled = True  # Flag to enable/disable caching
         self.query_cache = {}  # Dictionary to store query results
-        self.cache_directory = cache_directory
 
         if loglevel:
             logger.setLevel(level=loglevel.upper())
@@ -23,29 +28,25 @@ class DatabaseConnector:
         if not connection_info and auth_backend != 'vault':
             raise TypeError("If Vault backend is not used, connection_info argument is expected.")
         
-        if auth_backend == 'local':
-            self.connection_info = connection_info
-        elif auth_backend == 'vault':
+        # chooses connection parameters based on auth-backend
+        if auth_backend == 'vault':
             from .vault import Vault
             self.connection_info = Vault().get_vertica_credentials()
-        else:
-            raise NotImplementedError()
+        elif connection_info:
+            self.connection_info = connection_info
         
-        logger.info(self.connection_info)
-
         self.dbengine = None
         self.dbengine = self.connect()  # Placeholder for the database connection
         
     def connect(self):
         if self.dbengine is None:
             if self.db_type == 'vertica':
-                self.dbengine = verticaConnection(self.connection_info)
+                self.dbengine = verticaConnection(self.connection_info).connect()
             else:
                 self.dbengine = sqlAlchemyDbConnection(self.connection_info)
 
-        return self.dbengine.connect()
+        return self.dbengine
 
-    # todo; enable getting login details from Vault
     def q(self, query):
         cache_key = self._get_cache_key(query)
         if self.cache_enabled and cache_key in self.query_cache:

@@ -21,13 +21,12 @@ class sqlAlchemyDbConnection():
         self.connection_info = connection_info
         dialect = {
             "postgresql": "postgresql",
-            "mysql": "mysql+pymysql",
-            "sqlserver": "mssql+pyodbc"
+            "mysql": "mysql+pymysql"
         }
         
         connection_prefix = dialect[db_type]
         if not connection_prefix:
-            raise DialectNotFoundError()
+            raise NotImplementedError(f"{db_type} is not implemented. Possible options: {','.join(dialect.keys())}")
         
         connection_info.update({'dialect': dialect.get(db_type)})
         self.connection_string = "{dialect}://{user}:{password}@{host}:{port}/{database}".format(**connection_info)
