@@ -1,11 +1,11 @@
 import hashlib
 
 import pandas as pd
+import diskcache
 
 from .dbconfig import verticaConnection, sqlAlchemyDbConnection
 from .logger import pkg_logger as logger
 
-# todo: implement a disk cache
 
 class DatabaseConnector:
     """
@@ -16,11 +16,14 @@ class DatabaseConnector:
         db_type: Option to select a database connection - vertica,postgres,mysql. Else raises Error.
         connection_info: Python dictionary containing host,user,password and port. Is ignored if auth_backend is set to Vault.
         auth_backend: Ignored if passing authentication details in connection info. Else, use 'vault'.
+        cache_timeout: timeouts in seconds
+        cache_directory: Directory location
     """
-    def __init__(self, db_type, auth_backend='vault', connection_info={}, loglevel='DEBUG'):
+    def __init__(self, db_type, auth_backend=None, connection_info={}, loglevel='DEBUG', cache_directory=None, cache_timeout=3600):
         self.db_type = db_type
         self.cache_enabled = True  # Flag to enable/disable caching
-        self.query_cache = {}  # Dictionary to store query results
+        self.cache = diskcache.Cache(directory=cache_directory if cache_directory else None,
+                                    timeout=cache_timeout)
 
         if loglevel:
             logger.setLevel(level=loglevel.upper())
@@ -43,24 +46,29 @@ class DatabaseConnector:
             if self.db_type == 'vertica':
                 self.dbengine = verticaConnection(self.connection_info).connect()
             else:
-                self.dbengine = sqlAlchemyDbConnection(self.connection_info)
+                self.dbengine = sqlAlchemyDbConnection(self.connection_info).connect()
 
         return self.dbengine
 
     def q(self, query):
         cache_key = self._get_cache_key(query)
-        if self.cache_enabled and cache_key in self.query_cache:
-            logger.debug("Returning cached query result.")
-            return self.query_cache[cache_key]
-
+        
         try:
+            result = self.cache.get(cache_key)
+            if self.cache_enabled and result is not None:
+                logger.debug("Returning cached query result.")
+                return result
+            
             result = pd.read_sql(query, self.dbengine)
             logger.debug("Query executed successfully!")
+
             if self.cache_enabled:
-                self.query_cache[cache_key] = result
+                self.cache.set(cache_key, result)
+
             return result
         except Exception as error:
             logger.error("Error executing the query: {}".format(error))
+            
 
     def _get_cache_key(self, query):
         return hashlib.md5(query.encode()).hexdigest()
@@ -71,4 +79,4 @@ class DatabaseConnector:
         logger.info("Caching enabled: {}".format(self.cache_enabled))
 
     def clear_cache(self):
-        self.query_cache.clear()
+        self.cache.clear()

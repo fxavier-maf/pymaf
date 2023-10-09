@@ -1,6 +1,6 @@
 import logging
 
-from .config import *
+PACKAGE_NAME = 'pymaf'
 
 pkg_logger = logging.getLogger(PACKAGE_NAME)
 # Create a file handler
