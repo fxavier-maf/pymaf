@@ -1,4 +1,4 @@
-# Welcome to `pymaf`
+# pymaf
 
 `pymaf` is a Python package designed to simplify database interactions and improve efficiency with in-memory caching. It provides functionalities such as retrieving Vault-based credentials and using these credentials to authenticate database connections for running queries.
 
@@ -22,7 +22,7 @@ Here's a simple example of how to use `pymaf`:
 
 ```python
 import os
-from utils.database_connector import DatabaseConnector
+from pymaf.utils.database_connector import DatabaseConnector
 
 # Define your connection information
 connection_info = {
