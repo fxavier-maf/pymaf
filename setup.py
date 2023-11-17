@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name='pymaf',
     version='0.1.0',
-    description='A Python utility package for boilerplate code used within MAF',
+    description='An internal Python utility package for MAF',
     author='Fibinse Xavier',
     author_email='fibinse.xavier@maf.ae',
     url='https://github.com/maf/pymaf',
@@ -17,11 +17,11 @@ setup(
         'hvac==1.1.1',
         'diskcache'
     ],
-    classifiers=[
-        'Development Status :: 3 - Alpha',
-        'Intended Audience :: Developers',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-        'Operating System :: OS Independent',
-    ],
+    # classifiers=[
+    #     'Development Status :: 3 - Alpha',
+    #     'Intended Audience :: Developers',
+    #     'Programming Language :: Python :: 3.8',
+    #     'Programming Language :: Python :: 3.9',
+    #     'Operating System :: OS Independent',
+    # ],
 )
