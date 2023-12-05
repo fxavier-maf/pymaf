@@ -34,7 +34,7 @@ connection_info = {
 }
 
 # Establish a connection to your Vertica database
-connection = DatabaseConnector('vertica')
+connection = DatabaseConnector('vertica', connection_info)
 
 # Execute a query
 query = "SELECT * FROM ca_ods.ods_crf_dim_account limit 2"
