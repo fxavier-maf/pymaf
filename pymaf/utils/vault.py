@@ -1,13 +1,19 @@
 import os
+import json
+from datetime import datetime
+
 
 import hvac
+import getpass
 # from hvac import exceptions
 
+
 class Vault:
-    def __init__(self, vault="secret/data/jupyterhub-development/config"):
+    def __init__(self, credentials_path="ldap-users/fxavier/config"):
         """
         Args:
-            vault: (str) Location of credentials on path
+            credentials_path: (str) Location of credentials on Vault
+            https://vault.cicd.grid2.maf.ae
         """
         env_key = "DEVELOPER_ENVIRONMENT"
         environment = os.environ.get(env_key, "SANDBOX")
@@ -15,31 +21,54 @@ class Vault:
         if environment not in supported_env_list:
             raise NotImplementedError(f"{environment} is not authenticatable. Env should one of {','.join(supported_env_list)}")
 
-        self.environment = f"{environment}"
-        self.url_key = f"{self.environment}_KEYSTORE_URL"
-        self.user_key = f"{self.environment}_USER"
-        self.password_key = f"{self.environment}_PASSWORD"
+        if not os.path.exists("tokens"):
+            os.makedirs("tokens")
 
-        self.credential_path = vault
+        self.environment = f"{environment}"
+        self.url_key = f"{self.environment}_VAULT_URL"
+        self.user_key = "MAF_USER"
+
+        self.credentials_path = credentials_path
+        self.vault_url = os.environ.get(self.url_key,
+                                        'https://vault.cicd.grid2.maf.ae')
 
     def _get_vault_env_credentials(self):
         """
         Looks up environment variables to get vault credentials.
 
-        Required:
-        1. DEVELOPER_ENVIRONMENT: expects values - sandbox, production or rc
-        2. <ENV>_URL: Vault URL for the above environment (ex: SANDBOX_URL)
-        3. <ENV>_USER: Vault user for the above environment (ex: SANDBOX_USER)
-        4. <ENV>_PASSWORD: Vault password for the above environment (ex: SANDBOX_PASSWORD)
+        Args:
+            user: (str) Vault user for the above environment
+            password: (str) Vault password for the above environment
         """
-
-        url = os.environ.get(self.url_key)
         user = os.environ.get(self.user_key)
-        password = os.environ.get(self.password_key)
+        password = getpass.getpass(prompt="Enter MAF-AD password: ")
+        return {"maf_ad_user": user, "maf_ad_password": password}
 
-        return {"url": url, "user": user, "password": password}
+    def _read_token_from_disk(self, token_type="maf"):
+        token_path = os.sep.join(["tokens", f"{token_type}_token.json"])
+        token = None
+        if os.path.exists(token_path):
+            with open(token_path, "r") as file:
+                token = json.load(file)
 
-    def get_client(self, auth_method="userpass"):
+        return token
+
+    def _validate_token(self, token):
+        token_data = token.get('data', {})
+        expiration_ts_string = token_data.get('expire_time')
+        expiration_ts = datetime.strptime(expiration_ts_string[:23],
+                                        '%Y-%m-%dT%H:%M:%S.%f')
+        days_left = (expiration_ts - datetime.now()).days
+        if days_left > 0:
+            return token
+        return False
+
+    def _write_token_to_disk(self, token_type, token_content):
+        token_path = os.sep.join(["tokens", f"{token_type}_token.json"])
+        with open(token_path, "w") as file:
+            json.dump(token_content, file)
+
+    def get_client(self, auth_method="ldap"):
         """
         Creates an authenticated vault client.
 
@@ -47,17 +76,29 @@ class Vault:
             auth_method: defaults to username & password.
         """
         try:
-            credentials = self._get_vault_env_credentials()
-            self.client = hvac.Client(url=credentials["url"])
-            if auth_method == "userpass":
-                self.client.auth.userpass.login(
-                    username=credentials["user"], password=credentials["password"]
+            self.client = hvac.Client(url=self.vault_url)
+
+            # if unexpired token exists use that to extract credentials
+            token = self._read_token_from_disk()
+            is_valid_token = self._validate_token(token)
+            if token and is_valid_token:
+                self.client.token = token['data']['id']
+                return self.client
+
+            if auth_method == "ldap":
+                credentials = self._get_vault_env_credentials()
+                self.client.auth.ldap.login(
+                    username=credentials["maf_ad_user"],
+                    password=credentials["maf_ad_password"]
                 )
             else:
                 raise NotImplementedError(
                     f"Authentication with {auth_method} is not implemented"
                 )
 
+            # write retrieved token to disk for future 
+            self._write_token_to_disk("maf",
+                                      self.client.auth.token.lookup_self())
             return self.client
         except (hvac.exceptions.Forbidden,
                 hvac.exceptions.Unauthorized,
@@ -69,15 +110,28 @@ class Vault:
         """
         Get credentials from the path provided by the user
         """
-        response = self.get_client().read(self.credential_path)
+        response = self.get_client().secrets.kv.read_secret(path=self.credentials_path)
         if 'data' in response and response['data'] is not None:
             response = response['data']['data']
 
         return response
 
     def get_vertica_credentials(self):
+
         response = self._get_credentials()
-        return {k.replace('VERTICA_', '').lower(): v for k, v in response.items()}
-    
+        return {
+            k.replace('maf-ad-', '').lower(): v
+            for k, v
+            in response.items()
+            if k.startswith('maf')
+        }
+
+
 class VaultCustomException(Exception):
     pass
+
+if __name__ == '__main__':
+    x = Vault()
+    c = x.get_client()
+    print(c.is_authenticated())
+    print(x.get_vertica_credentials())
