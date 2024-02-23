@@ -55,24 +55,25 @@ For more detailed information, please refer to the full documentation.
 
 #### 2. using credentials from Vault
 
-Before you use Vault as a credential-store, you must add your credentials to both
-Vaults in Sandbox and Grid at this common location: `/secrets/secret/show/jupyterhub-development/config`
+Authentication via Vault requires you to pass your MAF-AD credentials interactively (once).
+Once the authentication is successful, the package will use the generated token to query
+other credentials from Vault as required. Till token-expiry (2 days) or pod-inactivation
+user do not need to supply their credentials again.
 
-1. Vault in Sandbox is located at: https://vault.sandbox.connect.xsight.maf.ae/
-2. Vault in Grid is located at: https://vault.cicd.grid2.maf.ae/
+a. Please add your MAF-AD credentials to this location in Vault (Grid): `https://vault.cicd.grid2.maf.ae/ui/vault/secrets/secret/show/ldap-users/{MAF_USER}/config` under `maf-ad-username` and `maf-ad-password`.
 
-Once this is done, use the following code to indicate your environment:
+b. Once this is done, use the following code to indicate your environment:
 
 ```python
 import os
 from pymaf.utils.database_connector import DatabaseConnector
 
-# Define your connection information
-
-# todo: request DevOps to make the user's credentials available in the Jupyterhub pod
-
 # Establish a connection to your Vertica database
-connection = DatabaseConnector('vertica')
+connection = DatabaseConnector('vertica', 'vault')
+
+# During first login of the session, you will see the following prompt.
+# Please enter your MAF-AD password:
+# Enter MAF-AD password: 
 
 # Execute a query
 query = "SELECT * FROM ca_ods.ods_crf_dim_account limit 2"

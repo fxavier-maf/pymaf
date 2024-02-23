@@ -10,7 +10,7 @@ from .logger import pkg_logger as logger
 class DatabaseConnector:
     """
     Creates an authenticated database connector, which can run queries
-    and cache response in-memory.
+    and caches responses.
 
     Args:
         db_type: Option to select a database connection - vertica,postgres,mysql. Else raises Error.
@@ -44,6 +44,13 @@ class DatabaseConnector:
     def connect(self):
         if self.dbengine is None:
             if self.db_type == 'vertica':
+                self.connection_info.update(
+                    {
+                        'port': 5433,
+                        'dbname': 'db1.data.maf.ae',
+                        'database': 'CA_dev'
+                    }
+                )
                 self.dbengine = verticaConnection(self.connection_info).connect()
             else:
                 self.dbengine = sqlAlchemyDbConnection(self.connection_info).connect()

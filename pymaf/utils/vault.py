@@ -54,6 +54,9 @@ class Vault:
         return token
 
     def _validate_token(self, token):
+        if not isinstance(token, dict):
+            return False
+
         token_data = token.get('data', {})
         expiration_ts_string = token_data.get('expire_time')
         expiration_ts = datetime.strptime(expiration_ts_string[:23],
