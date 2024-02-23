@@ -161,3 +161,7 @@ cython_debug/
 
 # OS stuff
 .DS_Store
+.virtual_documents/
+
+# book-keeping directories
+tokens/
