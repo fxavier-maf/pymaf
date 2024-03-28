@@ -58,7 +58,8 @@ The setup is straightforward:
 a. Please add your MAF-AD credentials to this location in Vault (Grid): `https://vault.cicd.grid2.maf.ae/ui/vault/secrets/secret/show/ldap-users/{MAF_USER}/config` under the
 variable names : `maf-ad-username` and `maf-ad-password`. Please make sure to keep the variable names as-is.
 
-b. Once this is done, use the following code to initiate connectivity:
+b. set environment-variable `MAF_USER` to MAF-AD username.
+c. Once this is done, use the following code to initiate connectivity:
 
 ```python
 import os
@@ -77,4 +78,18 @@ df = connection.q(query)
 
 # The next time you run the same query, the data is fetched from cache if available.
 df = connection.q(query)
+```
+
+#### 3. using `config.ini` file
+
+Create a `config.ini` file based on instructions in the [onboarding-document](https://dnamaf.atlassian.net/wiki/spaces/DA/pages/1097170945/DS+Onboarding).
+Then pass the filepath to the connector like so:
+```python
+from pymaf.utils.database_connector import DatabaseConnector
+
+# Establish a connection to your Vertica database
+connection = DatabaseConnector(
+    db_type='vertica',
+    config_ini_path='/Users/fibinse/Work/coe-datascience-main/config.ini',
+)
 ```
