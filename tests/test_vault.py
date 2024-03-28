@@ -3,11 +3,8 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import getpass
 import pytest
 from pymaf.utils.vault import Vault
-from pymaf.utils.vault import VaultCustomException
-from pymaf.utils.vault import TOKEN_NAME
 
 @pytest.fixture
 def vault(request):
