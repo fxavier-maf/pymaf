@@ -19,9 +19,9 @@ def vault(request):
 def test_vault_lookup_keys_match_environment(vault):
     orig_value = os.environ['DEVELOPER_ENVIRONMENT']
     assert vault.environment == f"{orig_value}"
-    assert vault.url_key == f"{orig_value}_KEYSTORE_URL"
-    assert vault.user_key == f"{orig_value}_USER"
-    assert vault.password_key == f"{orig_value}_PASSWORD"
+    assert vault.url_key == f"{orig_value}_VAULT_URL"
+    assert vault.user_key == f"{orig_value}_MAF_USER"
+    assert vault.password_key == f"{orig_value}_MAF_PASSWORD"
 
 def test_vault_gets_credentials_dict(vault):
     response = vault._get_credentials()
