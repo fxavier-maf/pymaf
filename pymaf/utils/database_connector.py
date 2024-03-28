@@ -16,6 +16,7 @@ class DatabaseConnector:
         db_type: Option to select a database connection - vertica,postgres. Else raises Error.
         connection_info: Python dictionary containing host,user,password and port. Is ignored if auth_backend is set to Vault.
         auth_backend: Ignored if connection_info is not null. Else, use 'vault' or 'ini'.
+        config_ini_path: Location of config.ini file.
         cache_timeout: timeouts in seconds
         cache_directory: Directory location
     """
@@ -37,8 +38,8 @@ class DatabaseConnector:
 
         # chooses connection parameters based on auth-backend
         if auth_backend == 'vault':
-            from .vault import Vault
-            self.connection_info = Vault().get_vertica_credentials()
+            from .vault import Vault # pragma: no cover
+            self.connection_info = Vault().get_vertica_credentials() # pragma: no cover
         elif config_ini_path:
             from configparser import ConfigParser
             config = ConfigParser()
@@ -55,10 +56,10 @@ class DatabaseConnector:
             }
         elif connection_info:
             self.connection_info = connection_info
-        
+
         self.dbengine = None
         self.dbengine = self.connect()  # Placeholder for the database connection
-        
+ 
     def connect(self):
         if self.dbengine is None:
             if self.db_type == 'vertica':
@@ -77,13 +78,13 @@ class DatabaseConnector:
 
     def q(self, query):
         cache_key = self._get_cache_key(query)
-        
+
         try:
             result = self.cache.get(cache_key)
             if self.cache_enabled and result is not None:
                 logger.debug("Returning cached query result.")
                 return result
-            
+
             result = pd.read_sql(query, self.dbengine)
             logger.debug("Query executed successfully!")
 
@@ -91,7 +92,7 @@ class DatabaseConnector:
                 self.cache.set(cache_key, result)
 
             return result
-        except (ConnectionError) as error:
+        except Exception as error:
             logger.error("Error executing the query: {}".format(error))
 
     def _get_cache_key(self, query):

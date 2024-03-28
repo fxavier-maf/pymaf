@@ -7,29 +7,42 @@ import hvac
 import getpass
 # from hvac import exceptions
 
+TOKEN_NAME = 'maf-login-auth'
+maf_user = os.environ.get("MAF_USER")
+
 
 class Vault:
-    def __init__(self, credentials_path="ldap-users/fxavier/config"):
+    """
+    Vault class provides functionality for interacting with Vault to retrieve credentials securely.
+
+    Usage:
+    1. Initialize the Vault class.
+    2. Use the methods to interact with Vault and retrieve credentials.
+
+    Example:
+    ```python
+    vault = Vault()
+    credentials = vault._get_vault_env_credentials()
+    """
+    def __init__(self):
         """
         Args:
             credentials_path: (str) Location of credentials on Vault
             https://vault.cicd.grid2.maf.ae
         """
-        env_key = "DEVELOPER_ENVIRONMENT"
-        environment = os.environ.get(env_key, "SANDBOX")
-        supported_env_list = ["SANDBOX", "PRODUCTION", "RC"]
-        if environment not in supported_env_list:
-            raise NotImplementedError(f"{environment} is not authenticatable. Env should one of {','.join(supported_env_list)}")
+        # env_key = "DEVELOPER_ENVIRONMENT"
+        # environment = os.environ.get(env_key, "UNKNONWN")
+        # if environment == 'UNKNOWN':
+        #     raise NotImplementedError(f"""{environment} is not authenticatable.""")
 
         if not os.path.exists("tokens"):
             os.makedirs("tokens")
 
-        self.environment = f"{environment}"
-        self.url_key = f"{self.environment}_VAULT_URL"
+        # self.environment = f"{environment}"
         self.user_key = "MAF_USER"
-
-        self.credentials_path = credentials_path
-        self.vault_url = os.environ.get(self.url_key,
+        self.credentials_path = f"ldap-users/{maf_user}/config"
+        print(self.credentials_path)
+        self.vault_url = os.environ.get("VAULT_URL",
                                         'https://vault.cicd.grid2.maf.ae')
 
     def _get_vault_env_credentials(self):
@@ -79,16 +92,16 @@ class Vault:
             auth_method: defaults to username & password.
         """
         try:
-            self.client = hvac.Client(url=self.vault_url)
-
-            # if unexpired token exists use that to extract credentials
-            token = self._read_token_from_disk()
-            is_valid_token = self._validate_token(token)
-            if token and is_valid_token:
-                self.client.token = token['data']['id']
-                return self.client
-
             if auth_method == "ldap":
+                self.client = hvac.Client(url=self.vault_url)
+
+                # if unexpired token exists use that to extract credentials
+                token = self._read_token_from_disk()
+                is_valid_token = self._validate_token(token)
+                if token and is_valid_token:
+                    self.client.token = token['data']['id']
+                    return self.client
+
                 credentials = self._get_vault_env_credentials()
                 self.client.auth.ldap.login(
                     username=credentials["maf_ad_user"],
@@ -100,7 +113,7 @@ class Vault:
                 )
 
             # write retrieved token to disk for future 
-            self._write_token_to_disk("maf",
+            self._write_token_to_disk(TOKEN_NAME,
                                       self.client.auth.token.lookup_self())
             return self.client
         except (hvac.exceptions.Forbidden,

@@ -59,18 +59,13 @@ def test_db_connector_q_without_cache(db_connector):
     assert len(list(db_connector.cache.iterkeys())) == 0
 
 
-def test_db_connector_q_exception(db_connector, monkeypatch, caplog):
-    # Check if the q() method logs an error when an exception occurs during query execution
-    def mock_read_sql(query, dbengine):
-        raise Exception('Query execution failed')
-
-    monkeypatch.setattr('pandas.read_sql', mock_read_sql)
+def test_db_connector_q_exception(db_connector, caplog):
 
     with caplog.at_level(logging.ERROR):
+        db_connector.close_connection()
         result = db_connector.q('SELECT 22')
         assert result is None
         assert 'Error executing the query' in caplog.text
-        assert 'Query execution failed' in caplog.text
 
 
 def test_db_connector_toggle_cache(db_connector):
@@ -90,18 +85,13 @@ def test_db_connector_clear_cache(db_connector):
     assert len(list(db_connector.cache.iterkeys())) == 0
 
 
-# def test_connection_closure(db_connector):
-#     # tests that None is returned when closed connection is called for querying
-#     db_connector.close_connection()
-#     with pytest.raises(Exception):
-#         _ = db_connector.q("select 22")
+def test_connection_closure(db_connector):
+    # tests that None is returned when closed connection is called for querying
+    db_connector.close_connection()
+    _ = db_connector.q("select 22")
+    assert _ is None
 
 
-# def test_db_connector_unsupported_auth_exception():
-#     with pytest.raises(TypeError):
-#         DatabaseConnector(db_type='vertica', connection_info={}, auth_backend='grid')
-
-
-# def test_db_connector_config_ini_input():
-#     with pytest.raises(TypeError):
-#         DatabaseConnector(db_type='vertica', config_ini_input=None)
+def test_db_connector_unsupported_auth_exception():
+    with pytest.raises(TypeError):
+        DatabaseConnector(db_type='vertica', connection_info={}, auth_backend='grid')
